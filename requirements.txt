@@ -21,3 +21,4 @@ sentence_transformers
 PyPDF2
 google-generativeai
 langchain-gemini
+langchain_google_genai
