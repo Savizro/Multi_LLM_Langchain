@@ -1,53 +1,60 @@
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate   
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
+import gradio as gr
 
-import streamlit as st
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
 
-#langsmith tracking
+# Load environment variables
+load_dotenv()
 os.environ["LANGCHAIN_TRACING_V2"] = "TRUE"
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
 os.environ["GEMINI_API_KEY"] = os.getenv("GEMINI_API_KEY")
 os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+os.environ["MISTRAL_API_KEY"] = os.getenv("MISTRAL_API_KEY")
 
-#Prompt Template
-prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", "you are a helpful assistant. Please answer the questions of the users as best you can."),
-        ("user", "Question: {question}")
-    ]
-)
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful assistant. Please answer the questions of the users as best you can."),
+    ("user", "Question: {question}")
+])
+output_parser = StrOutputParser()
 
-# streamlit framework
-st.title("Langchain Chatbot with Gemini and Groq")
-input_text= st.text_input("Ask your question here: ")
-
-#gemini model llm
-llm = ChatGoogleGenerativeAI(
+gemini_llm = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash",
     temperature=0.6
 )
-output_parser= StrOutputParser() 
-chain= prompt | llm | output_parser
-
-#groq model llm
 groq_llm = ChatGroq(
     model="qwen-qwq-32b",
     temperature=0.6
 )
 
-llm_choice= st.selectbox(
-    "Select LLM",
-    options=["Gemini", "Groq"],
-    index=1
+mistral_llm = ChatGroq(
+    model="mistral-7b",
+    temperature=0.4
 )
 
-if input_text:
-    st.write(chain.invoke({"question":input_text}))
+def chatllm(question, model_choice):
+    if not question:
+        return "Please enter a question."
+    
+    llm = gemini_llm if model_choice == "Gemini" else groq_llm
+    response = (prompt | llm | output_parser).invoke({"question": question})
+    return response
 
+iface = gr.Interface(
+    fn=chatllm,
+    inputs=[
+        gr.Textbox(label="Ask your question here:"),
+        gr.Dropdown(["Gemini", "Groq"], value="Groq", label="Select LLM")
+    ],
+    outputs=gr.Textbox(label="Response"),
+    title="Langchain Chatbot with Gemini and Groq",
+    description="Ask any question and get responses from Gemini or Groq-powered LLMs."
+)
+# failsafe!!
+if __name__ == "__main__":
+    iface.launch(share=True)
